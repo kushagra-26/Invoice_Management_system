@@ -11,13 +11,31 @@ export class Invoice extends Document {
   invoiceNumber: string;
 
   @Prop({ required: true })
-  amount: number;
+  clientName: string;
 
   @Prop({ required: true })
-  status: string; // paid | pending
+  clientEmail: string;
+
+  @Prop({ required: true })
+  issueDate: Date;
+
+  @Prop({ required: true })
+  dueDate: Date;
+
+  @Prop({ required: true })
+  amount: number;
+
+  @Prop({ default: 0 })
+  tax: number;
+
+  @Prop({ required: true })
+  total: number;
+
+  @Prop({ default: "pending" })
+  status: string; // pending | paid | overdue
 
   @Prop()
-  pdfUrl: string;
+  notes: string;
 }
 
 export const InvoiceSchema = SchemaFactory.createForClass(Invoice);

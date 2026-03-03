@@ -11,18 +11,48 @@ export class InvoicesService {
     private invoiceModel: Model<Invoice>,
   ) {}
 
-  async create(userId: string, amount: number) {
-    const invoice = new this.invoiceModel({
-      userId,
-      invoiceNumber: `INV-${Date.now()}`,
-      amount,
-      status: "paid",
-    });
+async create(userId: string, data: any) {
+  const total = data.amount + (data.amount * data.tax) / 100;
 
-    return invoice.save();
-  }
+  const invoice = new this.invoiceModel({
+    userId,
+    invoiceNumber: `INV-${Date.now()}`,
+    clientName: data.clientName,
+    clientEmail: data.clientEmail,
+    issueDate: data.issueDate,
+    dueDate: data.dueDate,
+    amount: data.amount,
+    tax: data.tax,
+    total,
+    status: "pending",
+    notes: data.notes,
+  });
 
-  async findByUser(userId: string) {
-    return this.invoiceModel.find({ userId });
-  }
+  return invoice.save();
+}
+
+ async findByUser(userId: string) {
+  const invoices = await this.invoiceModel.find({ userId });
+
+  const today = new Date();
+
+  return invoices.map((invoice) => {
+    if (
+      invoice.status === "pending" &&
+      new Date(invoice.dueDate) < today
+    ) {
+      invoice.status = "overdue";
+    }
+
+    return invoice;
+  });
+}
+
+  async markAsPaid(invoiceId: string, userId: string) {
+  return this.invoiceModel.findOneAndUpdate(
+    { _id: invoiceId, userId },
+    { status: "paid" },
+    { new: true }
+  );
+}
 }
