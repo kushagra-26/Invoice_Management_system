@@ -37,11 +37,11 @@ export default function Dashboard() {
 
       {/* Welcome Section */}
       <div>
-        <h2 className="text-2xl font-bold text-slate-800">
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
           Welcome {user?.email}
         </h2>
-        <p className="text-slate-500 mt-1">
-          Here’s an overview of your business.
+        <p className="text-slate-500 dark:text-slate-400 mt-1">
+          Here&apos;s an overview of your business.
         </p>
       </div>
 
@@ -69,13 +69,13 @@ export default function Dashboard() {
 
       </div>
 
-      {/* Example Table Section */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <h3 className="font-semibold mb-4 text-slate-700">
+      {/* Recent Activity Section */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <h3 className="font-semibold mb-4 text-slate-700 dark:text-white">
           Recent Activity
         </h3>
 
-        <div className="space-y-3 text-sm text-slate-600">
+        <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
           <p>Invoice #1023 paid</p>
           <p>New customer added</p>
           <p>Invoice #1024 pending</p>
