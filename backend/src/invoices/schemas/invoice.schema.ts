@@ -22,17 +22,38 @@ export class Invoice extends Document {
   @Prop({ required: true })
   dueDate: Date;
 
-  @Prop({ required: true })
-  amount: number;
+  @Prop({
+    type: [
+      {
+        description: String,
+        quantity: Number,
+        price: Number,
+        total: Number,
+      },
+    ],
+    required: true,
+  })
+  items: {
+    description: string;
+    quantity: number;
+    price: number;
+    total: number;
+  }[];
 
   @Prop({ default: 0 })
   tax: number;
+
+  @Prop({ default: 0 })
+  discount: number;
+
+  @Prop({ required: true })
+  subtotal: number;
 
   @Prop({ required: true })
   total: number;
 
   @Prop({ default: "pending" })
-  status: string; // pending | paid | overdue
+  status: string;
 
   @Prop()
   notes: string;

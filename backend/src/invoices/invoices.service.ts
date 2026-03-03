@@ -12,7 +12,30 @@ export class InvoicesService {
   ) {}
 
 async create(userId: string, data: any) {
-  const total = data.amount + (data.amount * data.tax) / 100;
+
+  // Calculate line totals
+  const itemsWithTotals = data.items.map((item: any) => {
+    const itemTotal = item.quantity * item.price;
+    return {
+      ...item,
+      total: itemTotal,
+    };
+  });
+
+  // Calculate subtotal
+  const subtotal = itemsWithTotals.reduce(
+    (sum: number, item: any) => sum + item.total,
+    0
+  );
+
+  // Calculate tax
+  const taxAmount = subtotal * (data.tax / 100);
+
+  // Calculate discount
+  const discountAmount = subtotal * (data.discount / 100);
+
+  // Final total
+  const total = subtotal + taxAmount - discountAmount;
 
   const invoice = new this.invoiceModel({
     userId,
@@ -21,8 +44,10 @@ async create(userId: string, data: any) {
     clientEmail: data.clientEmail,
     issueDate: data.issueDate,
     dueDate: data.dueDate,
-    amount: data.amount,
+    items: itemsWithTotals,
     tax: data.tax,
+    discount: data.discount,
+    subtotal,
     total,
     status: "pending",
     notes: data.notes,
