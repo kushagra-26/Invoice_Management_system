@@ -54,7 +54,7 @@ export default function Dashboard() {
           <>
             <DashboardCard
               title="Total Revenue"
-              value={`$${stats.totalRevenue}`}
+              value={`₹${stats.totalRevenue}`}
               subtitle="This month"
             />
 

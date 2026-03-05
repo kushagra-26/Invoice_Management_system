@@ -12,6 +12,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
+      </head>
       <body className="bg-slate-50 text-slate-800">
         {children}
       </body>

@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import Razorpay from 'razorpay';
+import { Invoice } from '../invoices/schemas/invoice.schema';
 
 @Injectable()
 export class PaymentsService {
@@ -9,24 +12,41 @@ export class PaymentsService {
     key_secret: process.env.RAZORPAY_KEY_SECRET!,
   });
 
-  async createOrder(data: any) {
+  constructor(
+    @InjectModel(Invoice.name)
+    private invoiceModel: Model<Invoice>,
+  ) { }
 
-    console.log("createOrder payload:", data);
-    if (data.total === undefined || data.total === null) {
-      throw new Error("Invoice total missing");
+  async createOrder(data: any) {
+    const { invoiceId } = data;
+
+    if (!invoiceId) {
+      throw new BadRequestException('invoiceId is required');
     }
-    if (data.total <= 0) {
-      throw new Error("Invoice total must be greater than 0 to create a payment order");
+
+    // Fetch the invoice directly from the DB — the single source of truth for the total
+    const invoice = await this.invoiceModel.findById(invoiceId);
+    if (!invoice) {
+      throw new NotFoundException(`Invoice ${invoiceId} not found`);
+    }
+
+    const total = Number(invoice.total);
+
+    console.log(`Creating Razorpay order for invoice ${invoiceId}: total = ${total}`);
+
+    if (!total || total <= 0) {
+      throw new BadRequestException(
+        `Invoice total is ₹${total}. Please add items with a valid price before paying.`
+      );
     }
 
     const options = {
-      amount: data.total * 100,
-      currency: "INR",
-      receipt: `invoice_${data.invoiceId}`,
+      amount: Math.round(total * 100), // Razorpay expects paise (integers)
+      currency: 'INR',
+      receipt: `invoice_${invoiceId}`,
     };
 
     const order = await this.razorpay.orders.create(options);
-
     return order;
   }
 }
