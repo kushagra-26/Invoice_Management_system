@@ -2,6 +2,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Invoice } from './schemas/invoice.schema';
 import { Injectable } from '@nestjs/common';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class InvoicesService {
@@ -9,11 +10,10 @@ export class InvoicesService {
   constructor(
     @InjectModel(Invoice.name)
     private invoiceModel: Model<Invoice>,
+    private mailService: MailService,
   ) { }
 
 async create(userId: string, data: any) {
-   console.log("DATA RECEIVED:", data);
-  console.log("ITEMS RECEIVED:", data.items);
   const itemsWithTotals = data.items.map((item: any) => {
 
     const quantity = Number(item.quantity);
@@ -58,7 +58,9 @@ async create(userId: string, data: any) {
     notes: data.notes,
   });
 
-  return invoice.save();
+  const saved = await invoice.save();
+  await this.mailService.sendInvoiceEmail(saved);
+  return saved;
 }
 
   async findByUser(userId: string) {
