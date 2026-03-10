@@ -10,24 +10,32 @@ interface Props {
 
 const colorMap = {
   indigo: {
-    border: "border-indigo-100 dark:border-indigo-800",
-    iconBg: "bg-indigo-50 dark:bg-indigo-900/30",
-    iconText: "text-indigo-600 dark:text-indigo-400",
+    border: "border-indigo-100 dark:border-indigo-800/50",
+    iconBg: "bg-indigo-600",
+    iconText: "text-white",
+    accent: "from-indigo-50 to-white dark:from-indigo-950/20 dark:to-slate-800",
+    valueCls: "text-slate-800 dark:text-white",
   },
   green: {
-    border: "border-green-100 dark:border-green-800",
-    iconBg: "bg-green-50 dark:bg-green-900/30",
-    iconText: "text-green-600 dark:text-green-400",
+    border: "border-green-100 dark:border-green-800/50",
+    iconBg: "bg-green-600",
+    iconText: "text-white",
+    accent: "from-green-50 to-white dark:from-green-950/20 dark:to-slate-800",
+    valueCls: "text-slate-800 dark:text-white",
   },
   yellow: {
-    border: "border-yellow-100 dark:border-yellow-800",
-    iconBg: "bg-yellow-50 dark:bg-yellow-900/30",
-    iconText: "text-yellow-600 dark:text-yellow-400",
+    border: "border-amber-100 dark:border-amber-800/50",
+    iconBg: "bg-amber-500",
+    iconText: "text-white",
+    accent: "from-amber-50 to-white dark:from-amber-950/20 dark:to-slate-800",
+    valueCls: "text-slate-800 dark:text-white",
   },
   red: {
-    border: "border-red-100 dark:border-red-800",
-    iconBg: "bg-red-50 dark:bg-red-900/30",
-    iconText: "text-red-600 dark:text-red-400",
+    border: "border-red-100 dark:border-red-800/50",
+    iconBg: "bg-red-500",
+    iconText: "text-white",
+    accent: "from-red-50 to-white dark:from-red-950/20 dark:to-slate-800",
+    valueCls: "text-slate-800 dark:text-white",
   },
 };
 
@@ -42,18 +50,18 @@ export default function DashboardCard({
 
   return (
     <div
-      className={`bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border ${c.border} hover:shadow-md transition-all duration-200 group`}
+      className={`bg-gradient-to-br ${c.accent} rounded-2xl shadow-sm border ${c.border} hover:shadow-md transition-all duration-200 p-5 group`}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 truncate">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
             {title}
           </p>
-          <p className="text-3xl font-bold text-slate-800 dark:text-white mt-2 tracking-tight">
+          <p className={`text-3xl font-bold mt-2 tracking-tight ${c.valueCls}`}>
             {value}
           </p>
           {subtitle && (
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5 flex items-center gap-1">
               {subtitle}
             </p>
           )}
@@ -61,7 +69,7 @@ export default function DashboardCard({
 
         {icon && (
           <div
-            className={`shrink-0 p-3 rounded-xl ${c.iconBg} ${c.iconText} group-hover:scale-110 transition-transform duration-200`}
+            className={`shrink-0 p-2.5 rounded-xl ${c.iconBg} ${c.iconText} shadow-sm group-hover:scale-110 transition-transform duration-200`}
           >
             {icon}
           </div>
