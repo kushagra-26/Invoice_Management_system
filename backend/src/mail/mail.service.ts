@@ -1,128 +1,162 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+  private readonly logger = new Logger(MailService.name);
+  private transporter: nodemailer.Transporter;
+
+  constructor(private configService: ConfigService) {
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: this.configService.get<string>('EMAIL_USER'),
+        pass: this.configService.get<string>('EMAIL_PASS'),
+      },
+    });
+  }
 
   async sendInvoiceEmail(invoice: any) {
+    this.logger.log(`Attempting to send invoice email to: ${invoice.clientEmail}`);
+
+    if (!invoice.clientEmail) {
+      this.logger.error('No client email provided for invoice');
+      return;
+    }
+
+    const taxAmount = (invoice.subtotal * (invoice.tax || 0)) / 100;
+    const discountAmount = (invoice.subtotal * (invoice.discount || 0)) / 100;
+
     const itemsHtml = invoice.items
       .map(
         (item: any) => `
         <tr>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">${item.description}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">${item.quantity}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${Number(item.price).toFixed(2)}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;text-align:right;">₹${Number(item.total).toFixed(2)}</td>
+          <td style="padding:12px 15px; border-bottom:1px solid #edf2f7;">
+            <div style="font-weight:600; color:#2d3748;">${item.description}</div>
+          </td>
+          <td style="padding:12px 15px; border-bottom:1px solid #edf2f7; text-align:center; color:#4a5568;">${item.quantity}</td>
+          <td style="padding:12px 15px; border-bottom:1px solid #edf2f7; text-align:right; color:#4a5568;">₹${Number(item.price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+          <td style="padding:12px 15px; border-bottom:1px solid #edf2f7; text-align:right; font-weight:600; color:#2d3748;">₹${Number(item.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
         </tr>`,
       )
       .join('');
 
-    const taxAmount = (invoice.subtotal * invoice.tax) / 100;
-
     const html = `
-      <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-
-        <!-- Header -->
-        <div style="background:#4f46e5;padding:28px 32px;">
-          <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.5px;">Invoice SaaS</h1>
-          <p style="color:#c7d2fe;margin:4px 0 0;font-size:13px;">Professional Invoice Management</p>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #1a202c; margin: 0; padding: 0; background-color: #f7fafc; }
+    .container { 
+      max-width: 650px; 
+      margin: 40px auto; 
+      background-color: #ffffff; 
+      border-radius: 16px; 
+      overflow: hidden; 
+      box-shadow: 0 20px 50px rgba(0,0,0,0.1); 
+      border: 1px solid #e2e8f0; 
+    }
+    .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 40px; color: white; text-align: center; }
+    .content { padding: 40px; }
+    .invoice-meta { display: flex; justify-content: space-between; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #edf2f7; }
+    .meta-box h4 { margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #718096; }
+    .meta-box p { margin: 0; font-weight: 600; color: #2d3748; }
+    .table-container { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+    .table-header { background-color: #f8fafc; }
+    .table-header th { padding: 12px 15px; text-align: left; font-size: 12px; font-weight: 700; color: #718096; text-transform: uppercase; border-bottom: 2px solid #edf2f7; }
+    .summary-section { margin-left: auto; width: 250px; }
+    .summary-row { display: flex; justify-content: space-between; padding: 8px 0; }
+    .summary-row.total { border-top: 2px solid #edf2f7; margin-top: 10px; padding-top: 15px; font-weight: 800; font-size: 18px; color: #4f46e5; }
+    .footer { padding: 30px; background-color: #f8fafc; text-align: center; font-size: 13px; color: #a0aec0; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .badge-pending { background-color: #fffaf0; color: #9c4221; }
+    .badge-paid { background-color: #f0fff4; color: #22543d; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin:0; font-size:28px; letter-spacing:-0.025em;">INVOICE</h1>
+      <p style="margin:10px 0 0 0; opacity: 0.9;">${invoice.invoiceNumber}</p>
+    </div>
+    
+    <div class="content">
+      <div style="display: table; width: 100%; margin-bottom: 40px;">
+        <div style="display: table-cell; width: 50%;">
+          <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; color: #718096;">Billed To</h4>
+          <p style="margin: 0; font-weight: 700; font-size: 16px;">${invoice.clientName}</p>
+          <p style="margin: 2px 0 0 0; color: #4a5568;">${invoice.clientEmail}</p>
         </div>
-
-        <!-- Invoice Meta -->
-        <div style="padding:28px 32px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-          <table style="width:100%;border-collapse:collapse;">
-            <tr>
-              <td>
-                <p style="margin:0;font-size:13px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Invoice Number</p>
-                <p style="margin:4px 0 0;font-size:18px;font-weight:700;color:#1e293b;">${invoice.invoiceNumber}</p>
-              </td>
-              <td style="text-align:right;">
-                <span style="display:inline-block;background:#fef9c3;color:#854d0e;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;">PAYMENT PENDING</span>
-              </td>
-            </tr>
-          </table>
-          <table style="width:100%;border-collapse:collapse;margin-top:20px;">
-            <tr>
-              <td style="padding-right:24px;">
-                <p style="margin:0;font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Billed To</p>
-                <p style="margin:4px 0 0;font-size:14px;font-weight:600;color:#1e293b;">${invoice.clientName}</p>
-                <p style="margin:2px 0 0;font-size:13px;color:#64748b;">${invoice.clientEmail}</p>
-              </td>
-              <td style="text-align:right;">
-                <p style="margin:0;font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Issue Date</p>
-                <p style="margin:4px 0 0;font-size:13px;color:#1e293b;">${new Date(invoice.issueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-                <p style="margin:8px 0 0;font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Due Date</p>
-                <p style="margin:4px 0 0;font-size:13px;font-weight:600;color:#ef4444;">${new Date(invoice.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-              </td>
-            </tr>
-          </table>
+        <div style="display: table-cell; width: 50%; text-align: right;">
+          <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; color: #718096;">Status</h4>
+          <span class="badge ${invoice.status === 'paid' ? 'badge-paid' : 'badge-pending'}">${invoice.status.toUpperCase()}</span>
+          <p style="margin: 15px 0 0 0; font-size: 13px; color: #718096;">Date: ${new Date(invoice.issueDate).toLocaleDateString('en-IN')}</p>
+          <p style="margin: 2px 0 0 0; font-size: 13px; color: #e53e3e; font-weight: 600;">Due: ${new Date(invoice.dueDate).toLocaleDateString('en-IN')}</p>
         </div>
+      </div>
 
-        <!-- Items Table -->
-        <div style="padding:28px 32px;">
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="background:#f1f5f9;">
-                <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Description</th>
-                <th style="padding:10px 12px;text-align:center;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Qty</th>
-                <th style="padding:10px 12px;text-align:right;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Rate</th>
-                <th style="padding:10px 12px;text-align:right;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Amount</th>
-              </tr>
-            </thead>
-            <tbody>${itemsHtml}</tbody>
-          </table>
+      <table class="table-container">
+        <thead>
+          <tr class="table-header">
+            <th style="width: 50%;">Description</th>
+            <th style="text-align: center;">Qty</th>
+            <th style="text-align: right;">Rate</th>
+            <th style="text-align: right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
 
-          <!-- Totals -->
-          <div style="margin-top:20px;border-top:2px solid #e2e8f0;padding-top:16px;">
-            <table style="width:100%;border-collapse:collapse;">
-              <tr>
-                <td style="width:60%;"></td>
-                <td>
-                  <table style="width:100%;border-collapse:collapse;">
-                    <tr>
-                      <td style="padding:4px 0;font-size:13px;color:#64748b;">Subtotal</td>
-                      <td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">₹${Number(invoice.subtotal).toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding:4px 0;font-size:13px;color:#64748b;">Tax (${invoice.tax}%)</td>
-                      <td style="padding:4px 0;font-size:13px;color:#1e293b;text-align:right;">₹${taxAmount.toFixed(2)}</td>
-                    </tr>
-                    <tr style="border-top:1px solid #e2e8f0;">
-                      <td style="padding:10px 0 4px;font-size:15px;font-weight:700;color:#1e293b;">Total Due</td>
-                      <td style="padding:10px 0 4px;font-size:15px;font-weight:700;color:#4f46e5;text-align:right;">₹${Number(invoice.total).toFixed(2)}</td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </div>
-
-          ${invoice.notes ? `<div style="margin-top:20px;padding:14px;background:#f8fafc;border-radius:8px;border-left:3px solid #4f46e5;"><p style="margin:0;font-size:12px;color:#64748b;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Notes</p><p style="margin:0;font-size:13px;color:#475569;">${invoice.notes}</p></div>` : ''}
+      <div class="summary-section">
+        <div class="summary-row">
+          <span style="color: #718096;">Subtotal</span>
+          <span style="font-weight: 600;">₹${Number(invoice.subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
         </div>
-
-        <!-- Footer -->
-        <div style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0;font-size:12px;color:#94a3b8;">This invoice was generated by <strong>Invoice SaaS</strong>. Please make payment by the due date.</p>
+        <div class="summary-row">
+          <span style="color: #718096;">GST (${invoice.tax}%)</span>
+          <span style="font-weight: 600; color: #e53e3e;">+ ₹${taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
         </div>
+        ${invoice.discount > 0 ? `
+        <div class="summary-row">
+          <span style="color: #718096;">Discount (${invoice.discount}%)</span>
+          <span style="font-weight: 600; color: #38a169;">- ₹${discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+        </div>` : ''}
+        <div class="summary-row total">
+          <span>Total</span>
+          <span>₹${Number(invoice.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+        </div>
+      </div>
 
-      </div>`;
+      ${invoice.notes ? `
+      <div style="margin-top: 50px; padding: 20px; background-color: #f8fafc; border-left: 4px solid #4f46e5; border-radius: 4px;">
+        <h4 style="margin: 0 0 5px 0; font-size: 11px; text-transform: uppercase; color: #718096;">Notes</h4>
+        <p style="margin: 0; font-size: 14px; color: #4a5568;">${invoice.notes}</p>
+      </div>` : ''}
+    </div>
+
+    <div class="footer">
+      <p style="margin-bottom: 5px;">Thank you for your business!</p>
+      <p style="margin: 0;">This is a computer-generated invoice from <strong>InvoiceSaaS</strong>.</p>
+    </div>
+  </div>
+</body>
+</html>`;
 
     try {
+      this.logger.log(`Using sender: ${this.configService.get('EMAIL_USER')}`);
       await this.transporter.sendMail({
-        from: `"Invoice SaaS" <${process.env.EMAIL_USER}>`,
+        from: `"Invoice SaaS" <${this.configService.get('EMAIL_USER')}>`,
         to: invoice.clientEmail,
-        subject: `Invoice ${invoice.invoiceNumber} — ₹${Number(invoice.total).toFixed(2)} Due`,
+        subject: `Invoice ${invoice.invoiceNumber} from InvoiceSaaS`,
         html,
       });
+      this.logger.log(`✅ Email successfully sent to ${invoice.clientEmail}`);
     } catch (err) {
-      console.error('Failed to send invoice email:', err.message);
+      this.logger.error(`❌ Failed to send invoice email to ${invoice.clientEmail}: ${err.message}`);
     }
   }
 }
